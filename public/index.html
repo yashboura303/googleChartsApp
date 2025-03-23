@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0288D1" />
+    <meta
+      name="description"
+      content="Milk Price Trends - Historical data visualization of milk prices in the U.S."
+    />
+    <title>Milk Price Trends | FRED Data Visualization</title>
+
+    <!-- Load Google Charts library -->
+    <script
+      type="text/javascript"
+      src="https://www.gstatic.com/charts/loader.js"
+    ></script>
+
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #ffffff;
+      }
+
+      h1 {
+        color: #0288d1;
+        margin-bottom: 30px;
+        font-weight: 500;
+        text-align: center;
+      }
+
+      .chart-container {
+        margin: 20px 0;
+        padding: 15px;
+        background-color: #f9f9f9;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        height: 500px;
+      }
+
+      .source {
+        margin-top: 20px;
+        font-size: 12px;
+        color: #666;
+        text-align: right;
+      }
+
+      .source p {
+        margin: 5px 0;
+      }
+
+      .error {
+        color: #e53935;
+        font-weight: bold;
+        text-align: center;
+      }
+
+      #loading {
+        text-align: center;
+        padding: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Milk Price Trends</h1>
+    <div id="loading">Loading data...</div>
+    <div id="chart_div" class="chart-container"></div>
+    <div class="source">
+      <p>Source: Federal Reserve Bank of St. Louis Economic Data (FRED)</p>
+      <p>Series ID: APU0000709112</p>
+    </div>
+
+    <script>
+      // Load the Visualization API and the corechart package
+      google.charts.load("current", { packages: ["corechart"] });
+
+      // Set a callback to run when the Google Visualization API is loaded
+      google.charts.setOnLoadCallback(drawChart);
+
+      // Function to draw the chart
+      function drawChart() {
+        // Hide loading indicator
+        document.getElementById("loading").style.display = "none";
+
+        // Fetch CSV data
+        fetch("APU0000709112.csv")
+          .then((response) => response.text())
+          .then((text) => {
+            try {
+              // Parse CSV
+              const rows = text.split("\n");
+              const dataTable = new google.visualization.DataTable();
+
+              dataTable.addColumn("date", "Date");
+              dataTable.addColumn("number", "Price per Gallon");
+
+              // Skip header row
+              for (let i = 1; i < rows.length; i++) {
+                const row = rows[i].trim();
+                if (row === "") continue;
+
+                const values = row.split(",");
+                if (values.length >= 2) {
+                  try {
+                    const dateStr = values[0].trim();
+                    const priceStr = values[1].trim();
+
+                    const dateParts = dateStr.split("-");
+                    const date = new Date(
+                      parseInt(dateParts[0]),
+                      parseInt(dateParts[1]) - 1,
+                      parseInt(dateParts[2])
+                    );
+                    const price = parseFloat(priceStr);
+
+                    if (!isNaN(date.getTime()) && !isNaN(price)) {
+                      dataTable.addRow([date, price]);
+                    }
+                  } catch (err) {
+                    console.warn(`Skipping invalid row: ${row}`);
+                  }
+                }
+              }
+
+              // Set chart options
+              const options = {
+                title:
+                  "Average Price: Milk, Fresh, Whole, Fortified (Cost per Gallon/3.8 Liters) in U.S. City Average",
+                titleTextStyle: {
+                  fontSize: 16,
+                },
+                hAxis: {
+                  title: "Date",
+                  format: "MMM yyyy",
+                },
+                vAxis: {
+                  title: "Price (USD)",
+                  format: "$#.##",
+                },
+                legend: { position: "none" },
+                lineWidth: 3,
+                colors: ["#0288D1"],
+                animation: {
+                  startup: true,
+                  duration: 1000,
+                  easing: "out",
+                },
+                pointSize: 0,
+                explorer: {
+                  actions: ["dragToZoom", "rightClickToReset"],
+                  axis: "horizontal",
+                  keepInBounds: true,
+                  maxZoomIn: 4.0,
+                },
+                chartArea: {
+                  width: "80%",
+                  height: "70%",
+                },
+                backgroundColor: {
+                  fill: "#f9f9f9",
+                },
+              };
+
+              // Create and draw the chart
+              const chart = new google.visualization.LineChart(
+                document.getElementById("chart_div")
+              );
+              chart.draw(dataTable, options);
+            } catch (err) {
+              document.getElementById(
+                "chart_div"
+              ).innerHTML = `<p class="error">Error loading data: ${err.message}</p>`;
+              console.error("Error processing data:", err);
+            }
+          })
+          .catch((err) => {
+            document.getElementById(
+              "chart_div"
+            ).innerHTML = `<p class="error">Error loading data file: ${err.message}</p>`;
+            console.error("Error fetching data:", err);
+          });
+      }
+    </script>
+  </body>
+</html>
